@@ -814,7 +814,8 @@ public :
    //Declare Functions I use
    float calculateDeltaR(int i, int j);
    void histoDeltaR(void);
-   void probeLoop(void);
+   void probeLoop1(void);
+   void probeLoop2(void);
    void nLoop(void);
    bool passPFTightPhoID(int i);
    bool passLoosePFPhoID(int i);

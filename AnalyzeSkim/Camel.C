@@ -14,18 +14,18 @@
 using namespace std;
 
 //Used for Loop and Print
-Long64_t nEntries = 0;
-Long64_t nTightPho = 0;
-Long64_t nMediumPho = 0;
-Long64_t nLoosePho = 0;
-Long64_t nNoCutPho = 0;
-Long64_t nLooseEvents = 0;
-Long64_t nLoosePerEvent = 0;
-Long64_t nMediumPerEvent = 0;
-Long64_t nTightPerEvent = 0;
-Long64_t nEventsTwoL = 0;
-Long64_t nEventsOneL = 0;
-Long64_t nEventsGTTwoL = 0;
+Long64_t nEntries;
+Long64_t nTightPho;
+Long64_t nMediumPho;
+Long64_t nLoosePho;
+Long64_t nNoCutPho;
+Long64_t nLooseEvents;
+Long64_t nLoosePerEvent;
+Long64_t nMediumPerEvent;
+Long64_t nTightPerEvent;
+Long64_t nEventsTwoL;
+Long64_t nEventsOneL;
+Long64_t nEventsGTTwoL;
 float lowestTightPt = 1000;
 float lowestLoosePt = 1000;
 
@@ -55,12 +55,12 @@ TH1F *hNoCutProbePt = new TH1F("NoCutProbePt", "Pt Distribution: No Cut Probe Je
 TH1F *hTightProbePt = new TH1F("TightProbePt", "Pt Distribution: Tight Probe Jets", 100, 0, 500);
 TH1F *hMediumProbePt = new TH1F("MediumProbePt", "Pt Distribution: Medium Probe Jets", 100, 0, 500);
 TH1F *hLooseProbePt = new TH1F("LooseProbePt", "Pt Distribution: Loose Probe Jets", 100, 0, 500);
-//TH1F *hNTightTheor = new TH1F("nTightTheor", "Theoretical Number of Faked Tight Jets Per Event", 10, 0, 10);
-//TH1F *hNMediumTheor = new TH1F("nMediumTheor", "Theoretical Number of Faked Medium Jets Per Event", 10, 0, 10);
-//TH1F *hNLooseTheor = new TH1F("nLooseTheor", "Theoretical Number of Faked Loose Jets Per Event", 10, 0, 10);
-//TH1F *hNTightReal = new TH1F("nTightReal", "Actual Number of Faked Tight Jets Per Event", 10, 0, 10);
-//TH1F *hNMediumReal = new TH1F("nMediumReal", "Actual Number of Faked Medium Jets Per Event", 10, 0, 10);
-//TH1F *hNLooseReal = new TH1F("nLooseReal", "Actual Number of Faked Loose Jets Per Event", 10, 0, 10);
+TH1F *hNTightTheor = new TH1F("nTightTheor", "Theoretical Number of Faked Tight Jets Per Event", 10, 0, 10);
+TH1F *hNMediumTheor = new TH1F("nMediumTheor", "Theoretical Number of Faked Medium Jets Per Event", 10, 0, 10);
+TH1F *hNLooseTheor = new TH1F("nLooseTheor", "Theoretical Number of Faked Loose Jets Per Event", 10, 0, 10);
+TH1F *hNTightReal = new TH1F("nTightReal", "Actual Number of Faked Tight Jets Per Event", 10, 0, 10);
+TH1F *hNMediumReal = new TH1F("nMediumReal", "Actual Number of Faked Medium Jets Per Event", 10, 0, 10);
+TH1F *hNLooseReal = new TH1F("nLooseReal", "Actual Number of Faked Loose Jets Per Event", 10, 0, 10);
 
 //Declaration of functions
 int Usage();
@@ -89,7 +89,8 @@ int main(int argc, char *argv[])
   myClass *m_1 = new myClass;
   m_1->histoLoop();
   m_1->histoDeltaR();
-  m_1->probeLoop();
+  m_1->probeLoop1();
+//  m_1->probeLoop2();
   makeFakeRates();
 //  m_1->nLoop();
   delete m_1;
@@ -166,9 +167,9 @@ void myClass::nLoop()
         nLoosePerEvent++;
       }
     }
-//    hNTightReal->Fill(nTightPerEvent);
-//    hNMediumReal->Fill(nMediumPerEvent);
-//    hNLooseReal->Fill(nLoosePerEvent);
+    hNTightReal->Fill(nTightPerEvent);
+    hNMediumReal->Fill(nMediumPerEvent);
+    hNLooseReal->Fill(nLoosePerEvent);
     for(Long64_t jpfJet = 0; jpfJet < pfJet_n; jpfJet++)
     { 
       alrInc = false;
@@ -195,14 +196,14 @@ void myClass::nLoop()
 	alrInc = true;
       }
     }
-//    hNTightTheor->Fill(nTightPerEvent);
-//    hNMediumTheor->Fill(nMediumPerEvent);
-//    hNLooseTheor->Fill(nLoosePerEvent);
+    hNTightTheor->Fill(nTightPerEvent);
+    hNMediumTheor->Fill(nMediumPerEvent);
+    hNLooseTheor->Fill(nLoosePerEvent);
     if (Cut(ientry) < 0) continue;
   }
 }
 
-void myClass::probeLoop()
+void myClass::probeLoop1()
 {
   float deltaR = 0;
   
@@ -221,12 +222,12 @@ void myClass::probeLoop()
       deltaR = calculateDeltaR(0, jPFJet);
       //If deltaR is within 0.5 skip the jet
       //Otherwise it is a probe jet
-      if(deltaR >= 0.5)
+      if(deltaR >= 0.3)
       {
         for(Long64_t i = 1; i < Photon_n; i++)
 	{
 	  deltaR = calculateDeltaR(i, jPFJet);
-	  if(deltaR < 0.5)
+	  if(deltaR < 0.3)
 	  {
 	    if(passPFTightPhoID(i))
 	    {
@@ -250,6 +251,77 @@ void myClass::probeLoop()
     }
     if (Cut(ientry) < 0) continue;
   }
+}
+
+void myClass::probeLoop2()
+{
+  float deltaR;
+  Long64_t n3PerEvent;
+  Long64_t n2PerEvent;
+  Long64_t n2;
+  Long64_t n3;
+  Long64_t nPerPhoton;
+
+  if(fChain == 0) return;
+
+  Long64_t nentrs = fChain->GetEntriesFast();
+  Long64_t nbytes = 0, nb = 0;
+  for(Long64_t jentry=0; jentry < nentrs; jentry++)
+  {
+    n2PerEvent = 0;
+    n3PerEvent = 0;
+    Long64_t ientry = LoadTree(jentry);
+    if(ientry < 0) break;
+    nb = fChain->GetEntry(jentry); nbytes += nb;
+    for(Long64_t i = 0; i < Photon_n; i++)
+    {
+      nPerPhoton = 0;
+      for(Long64_t jPFJet = 0; jPFJet < pfJet_n; jPFJet++)
+      {
+        deltaR = calculateDeltaR(i, jPFJet);
+        if(deltaR < 0.3)
+        { 
+	  nPerPhoton++;
+          if(passPFTightPhoID(i))
+          {
+            hTightProbePt->Fill(pfJet_pt[jPFJet]);
+            hMediumProbePt->Fill(pfJet_pt[jPFJet]);
+            hLooseProbePt->Fill(pfJet_pt[jPFJet]);
+          }
+          if(passMediumPFPhoID(i))
+          {
+            hMediumProbePt->Fill(pfJet_pt[jPFJet]);
+            hLooseProbePt->Fill(pfJet_pt[jPFJet]);
+          }
+          if(passLoosePFPhoID(i))
+          {
+            hLooseProbePt->Fill(pfJet_pt[jPFJet]); 
+          }
+        }
+        hNoCutProbePt->Fill(pfJet_pt[jPFJet]);
+      }
+      if(nPerPhoton == 2)
+      {
+        n2PerEvent++;
+      }
+      if(nPerPhoton ==3 )
+      {
+        n3PerEvent++;
+      }
+    }
+    if(n2PerEvent >= 1)
+    {
+      n2++;
+    }
+    if(n3PerEvent >= 1)
+    {
+      n3++;
+    }
+  if (Cut(ientry) < 0) continue;
+  }
+
+  cout << "There are " << n2 << " events that double match a jet" << endl;
+  cout << "There are " << n3 << " events that triple match a jet" << endl;
 }
 
 void myClass::histoDeltaR()
