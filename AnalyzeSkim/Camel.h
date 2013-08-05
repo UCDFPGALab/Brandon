@@ -807,16 +807,20 @@ public :
    virtual Int_t    GetEntry(Long64_t entry);
    virtual Long64_t LoadTree(Long64_t entry);
    virtual void     Init(TTree *tree);
-   virtual void     histoLoop();
    virtual Bool_t   Notify();
    virtual void     Show(Long64_t entry = -1);
 
    //Declare Functions I use
+   virtual void     histoLoop();
    float calculateDeltaR(int i, int j);
    void histoDeltaR(void);
-   void probeLoop1(void);
-   void probeLoop2(void);
+   void probeLoop(void);
    void nLoop(void);
+   void fillPFJetHisto(int i);
+   void fillNoCutHisto(int i);
+   void fillLooseHisto(int i);
+   void fillMediumHisto(int i);
+   void fillTightHisto(int i);
    bool passPFTightPhoID(int i);
    bool passLoosePFPhoID(int i);
    bool passMediumPFPhoID(int i);
