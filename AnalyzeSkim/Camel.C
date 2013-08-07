@@ -55,6 +55,12 @@ TH1F *hNoCutProbePt = new TH1F("NoCutProbePt", "Pt Distribution: Jets Faking No 
 TH1F *hTightProbePt = new TH1F("TightProbePt", "Pt Distribution: Jets Faking Tight", 100, 0, 500);
 TH1F *hMediumProbePt = new TH1F("MediumProbePt", "Pt Distribution: Jets Faking Medium", 100, 0, 500);
 TH1F *hLooseProbePt = new TH1F("LooseProbePt", "Pt Distribution: Jets Faking Loose", 100, 0, 500);
+TH1F *hNTightReal = new TH1F("NumTightReal", "Actual Observed Number of Tight Photons", 10, 0, 10);
+TH1F *hNMediumReal = new TH1F("NumMediumReal", "Actual Observed Number of Medium Photons", 10, 0, 10);
+TH1F *hNLooseReal = new TH1F("NumLooseReal", "Actual Observed Number of Loose Photons", 10, 0, 10);
+TH1F *hNTightTheor = new TH1F("NumTightTheor", "Theoretical Number of Tight Photons", 10, 0, 10);
+TH1F *hNMediumTheor = new TH1F("NumMediumTheor", "Theoretical Number of Medium Photons", 10, 0, 10);
+TH1F *hNLooseTheor = new TH1F("NumLooseTheor", "Theoretical Number of Loose Photons", 10, 0, 10);
 
 //Declaration of functions
 int usage();
@@ -85,7 +91,7 @@ int main(int argc, char *argv[])
   m_1->histoDeltaR();
   m_1->probeLoop();
   makeFakeRates();
-//  m_1->nLoop();
+  m_1->nLoop();
   delete m_1;
 
   saveHistograms();
@@ -108,25 +114,23 @@ int usage(void)
 
 void makeFakeRates(void)
 { 
-  //Method 1 uses probe pt's to find the fakerate
-
   TFile *f1 = new TFile("histograms.root", "RECREATE");
   //Get the jet fake rate histogram
   hFakeRateLoose = (TH1F*)hLooseProbePt->Clone();
   hFakeRateLoose->SetName("FakeRateLoose");
   hFakeRateLoose->SetTitle("Loose Photon Jet Fake Rate"); 
-  hFakeRateLoose->Divide(hNoCutProbePt);
+  hFakeRateLoose->Divide(hPFJetPt);
   hFakeRateMedium = (TH1F*)hMediumProbePt->Clone();
   hFakeRateMedium->SetName("FakeRateMedium");
   hFakeRateMedium->SetTitle("Medium Photon Jet Fake Rate");
-  hFakeRateMedium->Divide(hNoCutProbePt);
+  hFakeRateMedium->Divide(hPFJetPt);
   hFakeRateTight = (TH1F*)hTightProbePt->Clone();
   hFakeRateTight->SetName("FakeRateTight");
   hFakeRateTight->SetTitle("Tight Photon Jet Fake Rate");
-  hFakeRateTight->Divide(hNoCutProbePt);
+  hFakeRateTight->Divide(hPFJetPt);
 }
 
-/*void myClass::nLoop()
+void myClass::nLoop()
 {
   TRandom3 r;
   float rndmNum;
@@ -146,29 +150,44 @@ void makeFakeRates(void)
     if(ientry < 0) break;
     nb = fChain->GetEntry(jentry); nbytes += nb;
     for(Long64_t jPhoton = 0; jPhoton < Photon_n; jPhoton++)
-    {
-      if(passPFTightPhoID(jPhoton))
+    { 
+      alrInc = false;
+      if(passPFTightPhoID(jPhoton) && alrInc == false)
       {
         nTightPerEvent++;
+	nMediumPerEvent++;
+	nLoosePerEvent++;
+	alrInc = true;
       }
-      if(passMediumPFPhoID(jPhoton) || passPFTightPhoID(jPhoton))
+      if(passMediumPFPhoID(jPhoton) && alrInc == false)
       {
         nMediumPerEvent++;
+	nLoosePerEvent++;
+	alrInc = true;
       }
-      if(passLoosePFPhoID(jPhoton) || passMediumPFPhoID(jPhoton) || passPFTightPhoID(jPhoton))
+      if(passLoosePFPhoID(jPhoton) && alrInc == false)
       {
         nLoosePerEvent++;
+	alrInc = true;
       }
     }
     hNTightReal->Fill(nTightPerEvent);
     hNMediumReal->Fill(nMediumPerEvent);
     hNLooseReal->Fill(nLoosePerEvent);
+    nTightPerEvent = 0;
+    nMediumPerEvent = 0;
+    nLoosePerEvent = 0;
+//    cout << "Event " << jentry +1 << endl;
     for(Long64_t jpfJet = 0; jpfJet < pfJet_n; jpfJet++)
     { 
       alrInc = false;
       rndmNum = r.Rndm();
       k = hFakeRateTight->GetXaxis()->FindBin(pfJet_pt[jpfJet]);
-      if(rndmNum < hFakeRateTight->GetBinContent(k) && alrInc == false)
+//      cout << "Random: " << rndmNum << " k: " << k << " Pt: " << pfJet_pt[jpfJet] << endl;
+//      cout << "TightR: " << hFakeRateTight->GetBinContent(k);
+//      cout << " MediumR: " << hFakeRateMedium->GetBinContent(k);
+//      cout << " LooseR: " << hFakeRateLoose->GetBinContent(k) << endl;
+      if(rndmNum <= hFakeRateTight->GetBinContent(k) && alrInc == false)
       {
         nTightPerEvent++;
 	nMediumPerEvent++;
@@ -176,25 +195,30 @@ void makeFakeRates(void)
 	alrInc = true;
       }
       k = hFakeRateMedium->GetXaxis()->FindBin(pfJet_pt[jpfJet]);
-      if(rndmNum < hFakeRateMedium->GetBinContent(k) && alrInc == false)
+      if(rndmNum <= hFakeRateMedium->GetBinContent(k) && alrInc == false)
       {
         nMediumPerEvent++;
 	nLoosePerEvent++;
 	alrInc = true;
       }
       k = hFakeRateLoose->GetXaxis()->FindBin(pfJet_pt[jpfJet]);
-      if(rndmNum < hFakeRateLoose->GetBinContent(k) && alrInc == false)
+      if(rndmNum <= hFakeRateLoose->GetBinContent(k) && alrInc == false)
       {
         nLoosePerEvent++;
 	alrInc = true;
       }
     }
+//    cout << "nFakeTight: " << nTightPerEvent;
+//    cout << "nFakeMedium: " << nMediumPerEvent;
+//    cout << "nFakeLoose: " << nLoosePerEvent;
+//    cout << endl;
+//    cout << endl;
     hNTightTheor->Fill(nTightPerEvent);
     hNMediumTheor->Fill(nMediumPerEvent);
     hNLooseTheor->Fill(nLoosePerEvent);
     if (Cut(ientry) < 0) continue;
   }
-}*/
+}
 
 void myClass::probeLoop()
 { 
@@ -220,7 +244,7 @@ void myClass::probeLoop()
       deltaR = calculateDeltaR(rndm, jPFJet);
       //If deltaR is within 0.5 skip the jet
       //Otherwise it is a probe jet
-      if(deltaR >= 0.5)
+      if(deltaR >= 0.3)
       {
         for(Long64_t i = 0; i < Photon_n; i++)
 	{  
@@ -229,7 +253,7 @@ void myClass::probeLoop()
 	  //Otherwise, carry on
 	  alrInc = false;
 	  deltaR = calculateDeltaR(i, jPFJet);
-	  if(deltaR < 0.4)
+	  if(deltaR < 0.3)
 	  {
 	    if(passPFTightPhoID(i) && alrInc == false)
 	    { 
@@ -437,6 +461,12 @@ void saveHistograms(void)
    hTightProbePt->Write();
    hMediumProbePt->Write();
    hLooseProbePt->Write();
+   hNTightTheor->Write();
+   hNMediumTheor->Write();
+   hNLooseTheor->Write();
+   hNTightReal->Write();
+   hNMediumReal->Write();
+   hNLooseReal->Write();
 }
 
 //-----------------------------------

@@ -141,7 +141,7 @@ void skim_tree(vector<string> _flist, string userPhotonID,
         nLoosePerEvent = 0;
         for(jPhoton = 0; jPhoton < Photon_n; jPhoton++)
 	{
-          if(passLoosePFPhoID(jPhoton) || passMediumPFPhoID(jPhoton) || passPFTightPhoID(jPhoton))
+          if(passLoosePFPhoID(jPhoton))
           {
   	    nLoosePerEvent++;
           }
