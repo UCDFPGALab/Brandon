@@ -13,22 +13,6 @@
 #include <TRandom3.h>
 using namespace std;
 
-//Used for Loop and Print
-Long64_t nEntries;
-Long64_t nTightPho;
-Long64_t nMediumPho;
-Long64_t nLoosePho;
-Long64_t nNoCutPho;
-Long64_t nLooseEvents;
-Long64_t nLoosePerEvent;
-Long64_t nMediumPerEvent;
-Long64_t nTightPerEvent;
-Long64_t nEventsOneL;
-Long64_t nEventsTwoL;
-Long64_t nEventsGTTwoL;
-float lowestTightPt = 1000;
-float lowestLoosePt = 1000;
-
 //Create histograms
 TH1F *hNoCutPt = new TH1F("PtNoCut", "Pt Distribution: Photon No Cut", 100, 0, 500);
 TH1F *hTightPt = new TH1F("PtTight", "Pt Distribution: Photon Tight", 100, 0, 500);
@@ -64,12 +48,27 @@ TH1F *hNLooseTheor = new TH1F("NumLooseTheor", "Theoretical Number of Loose Phot
 
 //Declaration of functions
 int usage();
-void printResults(void);
+void printResults(Long64_t nEntries, Long64_t nTightPho, 
+  Long64_t nMediumPho, Long64_t nLoosePho, Long64_t nNoCutPho, 
+  Long64_t nLooseEvents, Long64_t nEventsOneL, Long64_t nEventsTwoL, 
+  Long64_t nEventsGTTwoL, float lowestLoosePt, float lowestTightPt);
 void saveHistograms(void);
 void makeFakeRates(void);
 
 int main(int argc, char *argv[])
 { 
+  Long64_t nEntries=0;
+  Long64_t nTightPho=0;
+  Long64_t nMediumPho=0;
+  Long64_t nLoosePho=0;
+  Long64_t nNoCutPho=0;
+  Long64_t nLooseEvents=0;
+  Long64_t nEventsOneL=0;
+  Long64_t nEventsTwoL=0;
+  Long64_t nEventsGTTwoL=0;
+  float lowestTightPt = 1000;
+  float lowestLoosePt = 1000;
+  
   if(argc == 1 || (strstr(argv[1], "help")!=NULL))
   {
     usage();
@@ -87,7 +86,9 @@ int main(int argc, char *argv[])
   }
 
   myClass *m_1 = new myClass;
-  m_1->histoLoop();
+  m_1->histoLoop(&nEntries, &nTightPho, &nMediumPho, &nLoosePho,
+    &nNoCutPho, &nLooseEvents, &nEventsOneL, &nEventsTwoL, 
+    &nEventsGTTwoL, &lowestLoosePt, &lowestTightPt);
   m_1->histoDeltaR();
   m_1->probeLoop();
   makeFakeRates();
@@ -95,11 +96,20 @@ int main(int argc, char *argv[])
   delete m_1;
 
   saveHistograms();
-  printResults();
+  cout << endl;
+  cout << "RIGHT BEFORE PRINT!" << endl;
+  cout << "nEntries: " << nEntries << "nTightPho: " << nTightPho;
+  cout << "nEventsGTTwoL: " << nEventsGTTwoL;
+  printResults(nEntries, nTightPho, nMediumPho, nLoosePho, 
+    nNoCutPho, nLooseEvents, nEventsOneL, nEventsTwoL, 
+    nEventsGTTwoL, lowestLoosePt, lowestTightPt);
 
   return 0;
 }
 
+//---------------------------------
+//Displays the usage of the program
+//---------------------------------
 int usage(void)
 {
   cout << endl;
@@ -112,6 +122,9 @@ int usage(void)
   return 0;
 }
 
+//------------------------------------------
+//Generates the fake rates used for analysis
+//------------------------------------------
 void makeFakeRates(void)
 { 
   TFile *f1 = new TFile("histograms.root", "RECREATE");
@@ -130,12 +143,16 @@ void makeFakeRates(void)
   hFakeRateTight->Divide(hPFJetPt);
 }
 
+//----------------------------------------------------
+//Generates theoretical and actual n counts of photons
+//----------------------------------------------------
 void myClass::nLoop()
 {
   TRandom3 r;
   float rndmNum;
   float k;
   bool alrInc;
+  int nTightPerEvent, nMediumPerEvent, nLoosePerEvent;
 
   if(fChain == 0) return;
 
@@ -176,17 +193,15 @@ void myClass::nLoop()
     hNLooseReal->Fill(nLoosePerEvent);
     nTightPerEvent = 0;
     nMediumPerEvent = 0;
-    nLoosePerEvent = 0;
-//    cout << "Event " << jentry +1 << endl;
+    //During our skim, we only picked events that have at least 1 loose photon
+    //Therefore, we must force our theoretical to always include at least one 
+    //loose photon
+    nLoosePerEvent = 1;
     for(Long64_t jpfJet = 0; jpfJet < pfJet_n; jpfJet++)
     { 
       alrInc = false;
       rndmNum = r.Rndm();
       k = hFakeRateTight->GetXaxis()->FindBin(pfJet_pt[jpfJet]);
-//      cout << "Random: " << rndmNum << " k: " << k << " Pt: " << pfJet_pt[jpfJet] << endl;
-//      cout << "TightR: " << hFakeRateTight->GetBinContent(k);
-//      cout << " MediumR: " << hFakeRateMedium->GetBinContent(k);
-//      cout << " LooseR: " << hFakeRateLoose->GetBinContent(k) << endl;
       if(rndmNum <= hFakeRateTight->GetBinContent(k) && alrInc == false)
       {
         nTightPerEvent++;
@@ -208,11 +223,6 @@ void myClass::nLoop()
 	alrInc = true;
       }
     }
-//    cout << "nFakeTight: " << nTightPerEvent;
-//    cout << "nFakeMedium: " << nMediumPerEvent;
-//    cout << "nFakeLoose: " << nLoosePerEvent;
-//    cout << endl;
-//    cout << endl;
     hNTightTheor->Fill(nTightPerEvent);
     hNMediumTheor->Fill(nMediumPerEvent);
     hNLooseTheor->Fill(nLoosePerEvent);
@@ -220,10 +230,13 @@ void myClass::nLoop()
   }
 }
 
+//---------------------------
+//Generate probe jet pt plots
+//---------------------------
 void myClass::probeLoop()
 { 
   bool alrInc = false;
-  float deltaR = 0;
+  float deltaR;
   TRandom3 r;
   int rndm;
 
@@ -238,13 +251,14 @@ void myClass::probeLoop()
     nb = fChain->GetEntry(jentry); nbytes += nb;
     //Get random tag photon
     rndm = int(r.Rndm()*Photon_n);
+
     //Compare deltaR for every jet with TAG photon (Photon[rndm])
     for(Long64_t jPFJet = 0; jPFJet < pfJet_n; jPFJet++)
     {
       deltaR = calculateDeltaR(rndm, jPFJet);
       //If deltaR is within 0.5 skip the jet
       //Otherwise it is a probe jet
-      if(deltaR >= 0.3)
+      if(deltaR >= 0.5)
       {
         for(Long64_t i = 0; i < Photon_n; i++)
 	{  
@@ -253,7 +267,7 @@ void myClass::probeLoop()
 	  //Otherwise, carry on
 	  alrInc = false;
 	  deltaR = calculateDeltaR(i, jPFJet);
-	  if(deltaR < 0.3)
+	  if(deltaR < 0.5)
 	  {
 	    if(passPFTightPhoID(i) && alrInc == false)
 	    { 
@@ -282,6 +296,9 @@ void myClass::probeLoop()
   }
 }
 
+//-------------------------------------
+//Generate a histogram of DeltaR values
+//-------------------------------------
 void myClass::histoDeltaR()
 {
   float deltaR = 0;
@@ -320,22 +337,31 @@ void myClass::histoDeltaR()
   }
 }
 
-void myClass::histoLoop()
+//---------------------------------------
+//Generates a bunch of various histograms
+//---------------------------------------
+void myClass::histoLoop(Long64_t *nEntries, 
+     Long64_t *nTightPho, Long64_t *nMediumPho, 
+     Long64_t *nLoosePho, Long64_t *nNoCutPho, 
+     Long64_t *nLooseEvents, Long64_t *nEventsOneL, 
+     Long64_t *nEventsTwoL, Long64_t *nEventsGTTwoL, 
+     float *lowestLoosePt, float *lowestTightPt)
 {
    bool alrInc = false;
    bool alrIncLoose = false;
+   int nLoosePerEvent;
    
    if(fChain == 0) return;
 
    Long64_t nentrs = fChain->GetEntriesFast();
-   nEntries = nEntries + nentrs;
+   *nEntries = *nEntries + nentrs;
    Long64_t nbytes = 0, nb = 0;
    for(Long64_t jentry=0; jentry < nentrs; jentry++) 
    {
       Long64_t ientry = LoadTree(jentry);
       if(ientry < 0) break;
       nb = fChain->GetEntry(jentry);   nbytes += nb;
-      nLoosePerEvent;
+      nLoosePerEvent = 0;
       //Loop through all of the photons in the event
       for(Long64_t photonNum=0; photonNum<Photon_n; photonNum++)
       { 
@@ -344,44 +370,44 @@ void myClass::histoLoop()
         if(passPFTightPhoID(photonNum) && alrInc == false)
         {
 	  //Increment photon counts
-	  nTightPho++;
-	  nMediumPho++;
-	  nLoosePho++;
+	  (*nTightPho)++;
+	  (*nMediumPho)++;
+	  (*nLoosePho)++;
 	  //Fill histograms
-	  fillTightHisto(photonNum);
+	  fillTightHisto(photonNum, lowestTightPt);
 	  fillMediumHisto(photonNum);
-	  fillLooseHisto(photonNum);
+	  fillLooseHisto(photonNum, lowestLoosePt);
           nLoosePerEvent++;
 	  alrInc = true;
 	}
 	//Check if medium
 	if(passMediumPFPhoID(photonNum) && alrInc == false)
 	{
-	  nMediumPho++;
+	  (*nMediumPho)++;
+	  (*nLoosePho)++;
 	  //Fill histograms
 	  fillMediumHisto(photonNum);
-	  fillLooseHisto(photonNum);
-	  nLoosePho++;
+	  fillLooseHisto(photonNum, lowestLoosePt);
           nLoosePerEvent++;
 	  alrInc = true;
 	}
         //Check if loose
         if(passLoosePFPhoID(photonNum) && alrInc == false)
         {
-	  nLoosePho++;
+	  (*nLoosePho)++;
           nLoosePerEvent++;
 	  //Fill histograms
-	  fillLooseHisto(photonNum);
+	  fillLooseHisto(photonNum, lowestLoosePt);
 	  alrInc = true;
         }
 	//Fill histograms
 	fillNoCutHisto(photonNum);
-        nNoCutPho++;
+        (*nNoCutPho)++;
       }
-      if(nLoosePerEvent >  0) {nLooseEvents++;}
-      if(nLoosePerEvent == 1) {nEventsOneL++;}
-      if(nLoosePerEvent == 2) {nEventsTwoL++;}
-      if(nLoosePerEvent >  2) {nEventsGTTwoL++;}
+      if(nLoosePerEvent >  0) {(*nLooseEvents)++;}
+      if(nLoosePerEvent == 1) {(*nEventsOneL)++;}
+      if(nLoosePerEvent == 2) {(*nEventsTwoL)++;}
+      if(nLoosePerEvent >  2) {(*nEventsGTTwoL)++;}
       //Loop through all the jets
       for(Long64_t jetNum=0; jetNum<pfJet_n; jetNum++)
       {
@@ -390,7 +416,12 @@ void myClass::histoLoop()
    }
 }
 
-void printResults(void)
+//-------------------------------------------
+//Print out various data points after looping
+//-------------------------------------------
+void printResults(Long64_t nEntries, Long64_t nTightPho, 
+  Long64_t nMediumPho, Long64_t nLoosePho, Long64_t nNoCutPho, 
+  Long64_t nLooseEvents, Long64_t nEventsOneL, Long64_t nEventsTwoL,  Long64_t nEventsGTTwoL, float lowestLoosePt, float lowestTightPt)
 {
    cout << endl;
    cout << "Number of photons (No Cut): " << nNoCutPho << endl;
@@ -430,6 +461,9 @@ void printResults(void)
 
 }
 
+//-------------------
+//Save all histograms
+//-------------------
 void saveHistograms(void)
 {
    //Make the file to save the histograms
@@ -492,15 +526,15 @@ void myClass::fillNoCutHisto(int i)
 //----------------------------------
 //Fill Loose Pt, Eta, Phi Histograms
 //----------------------------------
-void myClass::fillLooseHisto(int i)
+void myClass::fillLooseHisto(int i, float *lowestLoosePt)
 {
   hLoosePt->Fill(Photon_pt[i]);  
   hLooseEta->Fill(Photon_eta[i]);  
   hLoosePhi->Fill(Photon_phi[i]);  
   
-  if(Photon_pt[i] < lowestLoosePt)
+  if(Photon_pt[i] < (*lowestLoosePt))
   {
-    lowestLoosePt = Photon_pt[i];
+    *lowestLoosePt = Photon_pt[i];
   }
 }
 
@@ -517,15 +551,15 @@ void myClass::fillMediumHisto(int i)
 //----------------------------------
 //Fill Tight Pt, Eta, Phi Histograms
 //----------------------------------
-void myClass::fillTightHisto(int i)
+void myClass::fillTightHisto(int i, float *lowestTightPt)
 {
   hTightPt->Fill(Photon_pt[i]);  
   hTightEta->Fill(Photon_eta[i]);  
   hTightPhi->Fill(Photon_phi[i]);  
   
-  if(Photon_pt[i] < lowestTightPt)
+  if(Photon_pt[i] < (*lowestTightPt))
   {
-    lowestTightPt = Photon_pt[i];
+    *lowestTightPt = Photon_pt[i];
   }
 }
 

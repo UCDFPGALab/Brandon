@@ -811,16 +811,21 @@ public :
    virtual void     Show(Long64_t entry = -1);
 
    //Declare Functions I use
-   virtual void     histoLoop();
+   virtual void histoLoop(Long64_t *nEntries, 
+     Long64_t *nTightPho, Long64_t *nMediumPho, 
+     Long64_t *nLoosePho, Long64_t *nNoCutPho, 
+     Long64_t *nLooseEvents, Long64_t *nEventsOneL, 
+     Long64_t *nEventsTwoL, Long64_t *nEventsGTTwoL, 
+     float *lowestLoosePt, float *lowestTightPt);
    float calculateDeltaR(int i, int j);
    void histoDeltaR(void);
    void probeLoop(void);
    void nLoop(void);
    void fillPFJetHisto(int i);
    void fillNoCutHisto(int i);
-   void fillLooseHisto(int i);
+   void fillLooseHisto(int i, float *lowestLoosePt);
    void fillMediumHisto(int i);
-   void fillTightHisto(int i);
+   void fillTightHisto(int i, float *lowestTightPt);
    bool passPFTightPhoID(int i);
    bool passLoosePFPhoID(int i);
    bool passMediumPFPhoID(int i);
