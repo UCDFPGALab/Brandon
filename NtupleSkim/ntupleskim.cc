@@ -45,17 +45,16 @@ int main(int argc, char * argv[]){
 
   kutil::koptions options(argc, argv);
 
-  if (options.find("--help")){ usage(); }
+  if (options.find("--help")) { usage(); }
   int verbose       = options.find("--verbose");
 
   //Get the arguments from the command line
   //for customizing the skim
   photonID = argv[1];
 
+  //Ensure proper arguments are inputted
   if(argc < 5) {usage();}
-
-  if(strstr(photonID, "loose") == NULL)
-  {
+  if(strstr(photonID, "loose") == NULL) {
     if(strstr(photonID, "nocut") == NULL){usage();} 
   }
 
@@ -65,13 +64,13 @@ int main(int argc, char * argv[]){
   //Store all the file names from command line
   //into a string vector
   vector<string> _filelist;
-  for(int i=4; i<argc; i++){
-    if(strstr(argv[i],".root") != NULL){
+  for(int i=4; i<argc; i++) { 
+    if(strstr(argv[i],".root") != NULL) {
       _filelist.push_back(string(argv[i]));
     }
   }
 
-  while(options.unrecognized_option(arg)){
+  while(options.unrecognized_option(arg)) {
     printf("ERROR: unrecognized option %s\n", arg.c_str());
     usage();
   }
@@ -84,8 +83,8 @@ int main(int argc, char * argv[]){
   return 0;
 }
 
-void usage() 
-{
+//Print out usage for program
+void usage() {
   cout << endl;
   cout << "USAGE: ./skim [PHOTONID] [PHOTON_N] [NLOOSE] [FILES]\n";
   cout << "--> PHOTONID can be either ""nocut"" or ""loose""\n";
@@ -96,11 +95,13 @@ void usage()
   exit(0);
 }
 
-void skim_tree(vector<string> _flist, string userPhotonID, 
-    Long64_t userPhoton_n, Long64_t nLoose)
-{
+//Begin skimming the inputted .root file
+void skim_tree(vector<string> _flist, string userPhotonID, Long64_t userPhoton_n, Long64_t nLoose) {
+  
+  //Get TChain
   TChain ch("myEvent");
   
+  //Create TChain for all inputted files
   int fnum = _flist.size();
   for(int i=0; i<fnum; i++)
   {
@@ -109,6 +110,7 @@ void skim_tree(vector<string> _flist, string userPhotonID,
  
 //   ch.Print();
 
+  //Set chain branch addresses
   ch.SetBranchAddress("Photon_n", &Photon_n);
   ch.SetBranchAddress("Photon_sc_eta", &Photon_sc_eta);
   ch.SetBranchAddress("PFiso_Charged03", &PFiso_Charged03);
@@ -120,31 +122,31 @@ void skim_tree(vector<string> _flist, string userPhotonID,
   ch.SetBranchAddress("Photon_pt", &Photon_pt);
   ch.SetBranchAddress("PFiso_Neutral03", &PFiso_Neutral03);
 
+  //Make new root file to store skimmed trees
   TFile file("skim.root", "RECREATE");
+  //Clone the current chained tree
   TTree * sktree = ch.CloneTree(0);
 
   Long64_t jPhoton;
   Long64_t nLoosePerEvent;
 
-  for (int i=0; i<ch.GetEntries(); i++)
-  {
+  //Loop over chain
+  for (int i=0; i<ch.GetEntries(); i++) {
     ch.GetEntry(i);
-    //Skim according to user inputed Photon_n
-    if (userPhoton_n <= Photon_n)
-    {
-      if(strstr(userPhotonID.c_str(), "nocut") != NULL)
-      {
-        sktree->Fill();
-      }
-      if(strstr(userPhotonID.c_str(), "loose") != NULL)
-      {
-        nLoosePerEvent = 0;
-        for(jPhoton = 0; jPhoton < Photon_n; jPhoton++)
-	{
-          if(passLoosePFPhoID(jPhoton))
-          {
-  	    nLoosePerEvent++;
-          }
+    
+    //Skim according to user inputed photon number
+    if (userPhoton_n <= Photon_n) {
+
+      //Check for cut requirements
+      if(strstr(userPhotonID.c_str(), "nocut") != NULL) {sktree->Fill();}
+      if(strstr(userPhotonID.c_str(), "loose") != NULL) {
+	nLoosePerEvent = 0;
+
+        for(jPhoton = 0; jPhoton < Photon_n; jPhoton++) {
+          //See if we found a loose photon
+	  if(passLoosePFPhoID(jPhoton)) {
+	    nLoosePerEvent++;
+	  }
 	}
 	if(nLoosePerEvent >= nLoose)
 	{
@@ -158,9 +160,9 @@ void skim_tree(vector<string> _flist, string userPhotonID,
  file.Close();
 }
 
-//----------------------------
-//Determine if photon is tight
-//----------------------------
+//--------------------------------------------
+//Determine if photon meets tight requirements
+//--------------------------------------------
 bool passPFTightPhoID(int i)
 {
   string dataType = "mc";
@@ -193,9 +195,9 @@ bool passPFTightPhoID(int i)
   return tightID;
 }
 
-//-----------------------------
-//Determine if photon is medium
-//-----------------------------
+//---------------------------------------------
+//Determine if photon meets medium requirements
+//---------------------------------------------
 bool passMediumPFPhoID(int i)
 {           
   bool mediumID=false;
@@ -229,9 +231,9 @@ bool passMediumPFPhoID(int i)
   return mediumID;
 }
 
-//----------------------------
-//Determine if photon is loose
-//----------------------------
+//--------------------------------------------
+//Determine if photon meets loose requirements
+//--------------------------------------------
 bool passLoosePFPhoID(int i)
 {
   bool looseID=false;

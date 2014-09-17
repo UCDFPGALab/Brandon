@@ -1,3 +1,14 @@
+/*
+  This utility looks at root files generated from the decay of Higgs -> gamma, gamma interactions.
+  We generate various histograms to be used for data analysis as well as used to confirm
+  theoretical estimates for the expected photon count.
+  Tight  - strict quotas the jet needs to meet to be considered a photon
+  Medium - less strict quotas
+  Loose  - even lesser strict quotas
+
+  Author: Brandon Buonacorsi <bbuonacorsi@ucdavis.edu>
+*/
+
 #define myClass_cxx
 #include "myEvent.h"
 #include <TH2.h>
@@ -55,8 +66,7 @@ void printResults(Long64_t nEntries, Long64_t nTightPho,
 void saveHistograms(void);
 void makeFakeRates(void);
 
-int main(int argc, char *argv[])
-{ 
+int main(int argc, char *argv[]) { 
   Long64_t nEntries=0;
   Long64_t nTightPho=0;
   Long64_t nMediumPho=0;
@@ -69,29 +79,35 @@ int main(int argc, char *argv[])
   float lowestTightPt = 1000;
   float lowestLoosePt = 1000;
   
-  if(argc == 1 || (strstr(argv[1], "help")!=NULL))
-  {
+  if(argc == 1 || (strstr(argv[1], "help")!=NULL)) {
     usage();
     return 0;
   }
-  else
-  {
-    for(int i = 1; i < argc; i++)
-    {
-      if(strstr(argv[i], ".root") != NULL)
-      {
+  else {
+    for(int i = 1; i < argc; i++) {
+      //Add inputted files from argument line to be processed
+      if(strstr(argv[i], ".root") != NULL) {
         _rootfile.push_back(argv[i]);
       }
     }
   }
 
+  //Construct a new class from file list
   myClass *m_1 = new myClass;
+
+  //Generate needed histrograms of newly constructed class
   m_1->histoLoop(&nEntries, &nTightPho, &nMediumPho, &nLoosePho,
     &nNoCutPho, &nLooseEvents, &nEventsOneL, &nEventsTwoL, 
     &nEventsGTTwoL, &lowestLoosePt, &lowestTightPt);
   m_1->histoDeltaR();
+ 
+  //Generate probe jet histograms
   m_1->probeLoop();
+  
+  //Generates fake rates of different cut photons
   makeFakeRates();
+
+  //Makes theoretical and actual counts of expected numbers of photons
   m_1->nLoop();
   delete m_1;
 
@@ -106,8 +122,7 @@ int main(int argc, char *argv[])
 //---------------------------------
 //Displays the usage of the program
 //---------------------------------
-int usage(void)
-{
+int usage(void) {
   cout << endl;
   cout << "USAGE: ./analyze [FILES]" << endl;
   cout << "--> FILES is any amount of .root files you wish to analyze" << endl;
@@ -121,8 +136,7 @@ int usage(void)
 //------------------------------------------
 //Generates the fake rates used for analysis
 //------------------------------------------
-void makeFakeRates(void)
-{ 
+void makeFakeRates(void) { 
   TFile *f1 = new TFile("histograms.root", "RECREATE");
   //Get the jet fake rate histogram
   hFakeRateLoose = (TH1F*)hLooseProbePt->Clone();
@@ -142,8 +156,7 @@ void makeFakeRates(void)
 //----------------------------------------------------
 //Generates theoretical and actual n counts of photons
 //----------------------------------------------------
-void myClass::nLoop()
-{
+void myClass::nLoop() {
   TRandom3 r;
   float rndmNum;
   float k;
@@ -152,38 +165,40 @@ void myClass::nLoop()
 
   if(fChain == 0) return;
 
+  //Simply loop through the TTree
   Long64_t nentrs = fChain->GetEntriesFast();
   Long64_t nbytes = 0, nb = 0;
-  for(Long64_t jentry=0; jentry < nentrs; jentry++)
-  {
+  for(Long64_t jentry=0; jentry < nentrs; jentry++) {
     nTightPerEvent = 0;
     nMediumPerEvent = 0;
     nLoosePerEvent = 0;
     Long64_t ientry = LoadTree(jentry);
     if(ientry < 0) break;
     nb = fChain->GetEntry(jentry); nbytes += nb;
-    for(Long64_t jPhoton = 0; jPhoton < Photon_n; jPhoton++)
-    { 
+    //Loop through number of photons in event
+    for(Long64_t jPhoton = 0; jPhoton < Photon_n; jPhoton++) { 
+      //This variable is used to not double count
       alrInc = false;
-      if(passPFTightPhoID(jPhoton) && alrInc == false)
-      {
+      //Check for tight photon requirements
+      if(passPFTightPhoID(jPhoton) && alrInc == false) {
         nTightPerEvent++;
 	nMediumPerEvent++;
 	nLoosePerEvent++;
 	alrInc = true;
       }
-      if(passMediumPFPhoID(jPhoton) && alrInc == false)
-      {
+      //Check for medium photon requirements
+      if(passMediumPFPhoID(jPhoton) && alrInc == false) {
         nMediumPerEvent++;
 	nLoosePerEvent++;
 	alrInc = true;
       }
-      if(passLoosePFPhoID(jPhoton) && alrInc == false)
-      {
+      //Check for loose photon requirements
+      if(passLoosePFPhoID(jPhoton) && alrInc == false) {
         nLoosePerEvent++;
 	alrInc = true;
       }
     }
+    //Fill histograms with the number of found photons per event
     hNTightReal->Fill(nTightPerEvent);
     hNMediumReal->Fill(nMediumPerEvent);
     hNLooseReal->Fill(nLoosePerEvent);
@@ -193,32 +208,37 @@ void myClass::nLoop()
     //Therefore, we must force our theoretical to always include at least one 
     //loose photon
     nLoosePerEvent = 1;
-    for(Long64_t jpfJet = 0; jpfJet < pfJet_n; jpfJet++)
-    { 
+    //Loop through jets
+    for(Long64_t jpfJet = 0; jpfJet < pfJet_n; jpfJet++) { 
       alrInc = false;
+      //Use random number generator to find theoretical expected number
+      //i.e. Monte Carlo simulation
       rndmNum = r.Rndm();
+      //Find the fake rate (i.e. how many photons do we see that are 
+      //actually just jets faking as a photon)
+      //Simulate if a fake tight photon
       k = hFakeRateTight->GetXaxis()->FindBin(pfJet_pt[jpfJet]);
-      if(rndmNum <= hFakeRateTight->GetBinContent(k) && alrInc == false)
-      {
+      if(rndmNum <= hFakeRateTight->GetBinContent(k) && alrInc == false) {
         nTightPerEvent++;
 	nMediumPerEvent++;
 	nLoosePerEvent++;
 	alrInc = true;
       }
+      //Simulate if a fake medium photon
       k = hFakeRateMedium->GetXaxis()->FindBin(pfJet_pt[jpfJet]);
-      if(rndmNum <= hFakeRateMedium->GetBinContent(k) && alrInc == false)
-      {
+      if(rndmNum <= hFakeRateMedium->GetBinContent(k) && alrInc == false) {
         nMediumPerEvent++;
 	nLoosePerEvent++;
 	alrInc = true;
       }
+      //Simulate if a fake loose photon
       k = hFakeRateLoose->GetXaxis()->FindBin(pfJet_pt[jpfJet]);
-      if(rndmNum <= hFakeRateLoose->GetBinContent(k) && alrInc == false)
-      {
+      if(rndmNum <= hFakeRateLoose->GetBinContent(k) && alrInc == false) {
         nLoosePerEvent++;
 	alrInc = true;
       }
     }
+    //Fill corresponding hists
     hNTightTheor->Fill(nTightPerEvent);
     hNMediumTheor->Fill(nMediumPerEvent);
     hNLooseTheor->Fill(nLoosePerEvent);
@@ -229,8 +249,7 @@ void myClass::nLoop()
 //---------------------------
 //Generate probe jet pt plots
 //---------------------------
-void myClass::probeLoop()
-{ 
+void myClass::probeLoop() { 
   bool alrInc = false;
   float deltaR;
   TRandom3 r;
@@ -240,6 +259,7 @@ void myClass::probeLoop()
 
   Long64_t nentrs = fChain->GetEntriesFast();
   Long64_t nbytes = 0, nb = 0;
+  //Loop through events
   for(Long64_t jentry=0; jentry < nentrs; jentry++)
   {
     Long64_t ientry = LoadTree(jentry);
@@ -249,37 +269,31 @@ void myClass::probeLoop()
     rndm = int(r.Rndm()*Photon_n);
 
     //Compare deltaR for every jet with TAG photon (Photon[rndm])
-    for(Long64_t jPFJet = 0; jPFJet < pfJet_n; jPFJet++)
-    {
+    for(Long64_t jPFJet = 0; jPFJet < pfJet_n; jPFJet++) {
       deltaR = calculateDeltaR(rndm, jPFJet);
       //If deltaR is within 0.5 skip the jet
       //Otherwise it is a probe jet
-      if(deltaR >= 0.5)
-      {
-        for(Long64_t i = 0; i < Photon_n; i++)
-	{  
+      if(deltaR >= 0.5) {
+        for(Long64_t i = 0; i < Photon_n; i++) {  
 	  //Skip over tag photon
 	  if(i == rndm) {continue;}
 	  //Otherwise, carry on
 	  alrInc = false;
 	  deltaR = calculateDeltaR(i, jPFJet);
-	  if(deltaR < 0.5)
-	  {
-	    if(passPFTightPhoID(i) && alrInc == false)
-	    { 
+	  if(deltaR < 0.5) {
+	    //Check photon requirements were met
+	    if(passPFTightPhoID(i) && alrInc == false) { 
 	      hTightProbePt->Fill(pfJet_pt[jPFJet]);
 	      hMediumProbePt->Fill(pfJet_pt[jPFJet]);
 	      hLooseProbePt->Fill(pfJet_pt[jPFJet]);
 	      alrInc = true;
 	    }
-	    if(passMediumPFPhoID(i) && alrInc == false)
-	    {
+	    if(passMediumPFPhoID(i) && alrInc == false) {
 	      hMediumProbePt->Fill(pfJet_pt[jPFJet]);
 	      hLooseProbePt->Fill(pfJet_pt[jPFJet]);
 	      alrInc = true;
 	    }
-	    if(passLoosePFPhoID(i) && alrInc == false)
-	    {
+	    if(passLoosePFPhoID(i) && alrInc == false) {
 	      hLooseProbePt->Fill(pfJet_pt[jPFJet]); 
 	      alrInc = true;
 	    }
@@ -295,8 +309,7 @@ void myClass::probeLoop()
 //-------------------------------------
 //Generate a histogram of DeltaR values
 //-------------------------------------
-void myClass::histoDeltaR()
-{
+void myClass::histoDeltaR() {
   float deltaR = 0;
   bool alrFilled = false;
 
@@ -304,27 +317,23 @@ void myClass::histoDeltaR()
 
   Long64_t nentrs = fChain->GetEntriesFast();
   Long64_t nbytes = 0, nb = 0;
-  for(Long64_t jentry=0; jentry < nentrs; jentry++)
-  {
+  //Loop through events
+  for(Long64_t jentry=0; jentry < nentrs; jentry++) {
     Long64_t ientry = LoadTree(jentry);
     if(ientry < 0) break;
     nb = fChain->GetEntry(jentry); nbytes += nb;
     //Loop through each photon and jet and calc DeltaR
-    for(Long64_t jPhoton = 0; jPhoton < Photon_n; jPhoton++)
-    {
-      for(Long64_t jJet = 0; jJet < pfJet_n; jJet++)
-      {
+    for(Long64_t jPhoton = 0; jPhoton < Photon_n; jPhoton++) {
+      for(Long64_t jJet = 0; jJet < pfJet_n; jJet++) {
         deltaR = calculateDeltaR(jPhoton, jJet);
         //Find DeltaR for every photon/jet combination
 	hNoCutDeltaR->Fill(deltaR);
 	//Find DeltaR for every loose photon/jet combination
-        if(passLoosePFPhoID(jPhoton))
-        { 
+        if(passLoosePFPhoID(jPhoton)) { 
           hLooseDeltaR->Fill(deltaR);
         }
 	//Find DeltaR for every tight photon/jet combination
-	if(passPFTightPhoID(jPhoton))
-	{
+	if(passPFTightPhoID(jPhoton)) {
 	  hTightDeltaR->Fill(deltaR);
 	}
       }
@@ -341,7 +350,7 @@ void myClass::histoLoop(Long64_t *nEntries,
      Long64_t *nLoosePho, Long64_t *nNoCutPho, 
      Long64_t *nLooseEvents, Long64_t *nEventsOneL, 
      Long64_t *nEventsTwoL, Long64_t *nEventsGTTwoL, 
-     float *lowestLoosePt, float *lowestTightPt)
+     float *lowestLoosePt, float *lowestTightPt) 
 {
    bool alrInc = false;
    bool alrIncLoose = false;
@@ -352,19 +361,17 @@ void myClass::histoLoop(Long64_t *nEntries,
    Long64_t nentrs = fChain->GetEntriesFast();
    *nEntries = *nEntries + nentrs;
    Long64_t nbytes = 0, nb = 0;
-   for(Long64_t jentry=0; jentry < nentrs; jentry++) 
-   {
+   //Loop through events
+   for(Long64_t jentry=0; jentry < nentrs; jentry++) {
       Long64_t ientry = LoadTree(jentry);
       if(ientry < 0) break;
       nb = fChain->GetEntry(jentry);   nbytes += nb;
       nLoosePerEvent = 0;
       //Loop through all of the photons in the event
-      for(Long64_t photonNum=0; photonNum<Photon_n; photonNum++)
-      { 
+      for(Long64_t photonNum=0; photonNum<Photon_n; photonNum++) { 
         alrInc = false;
         //Check to see if tight photon
-        if(passPFTightPhoID(photonNum) && alrInc == false)
-        {
+        if(passPFTightPhoID(photonNum) && alrInc == false) {
 	  //Increment photon counts
 	  (*nTightPho)++;
 	  (*nMediumPho)++;
@@ -377,8 +384,7 @@ void myClass::histoLoop(Long64_t *nEntries,
 	  alrInc = true;
 	}
 	//Check if medium
-	if(passMediumPFPhoID(photonNum) && alrInc == false)
-	{
+	if(passMediumPFPhoID(photonNum) && alrInc == false) {
 	  (*nMediumPho)++;
 	  (*nLoosePho)++;
 	  //Fill histograms
@@ -388,8 +394,7 @@ void myClass::histoLoop(Long64_t *nEntries,
 	  alrInc = true;
 	}
         //Check if loose
-        if(passLoosePFPhoID(photonNum) && alrInc == false)
-        {
+        if(passLoosePFPhoID(photonNum) && alrInc == false) {
 	  (*nLoosePho)++;
           nLoosePerEvent++;
 	  //Fill histograms
@@ -405,8 +410,7 @@ void myClass::histoLoop(Long64_t *nEntries,
       if(nLoosePerEvent == 2) {(*nEventsTwoL)++;}
       if(nLoosePerEvent >  2) {(*nEventsGTTwoL)++;}
       //Loop through all the jets
-      for(Long64_t jetNum=0; jetNum<pfJet_n; jetNum++)
-      {
+      for(Long64_t jetNum=0; jetNum<pfJet_n; jetNum++) {
         fillPFJetHisto(jetNum);
       }
    }
@@ -440,6 +444,7 @@ void printResults(Long64_t nEntries, Long64_t nTightPho,
    cout << "Lowest Pt for Tight Photon: " << lowestTightPt << endl;
    cout << endl;
 
+   //Draw some histograms too..
    int fargc = 0;
    char* fargv[1];
    fargv[0] = NULL;
