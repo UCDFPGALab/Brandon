@@ -1,5 +1,5 @@
 #define myClass_cxx
-#include "Camel.h"
+#include "myEvent.h"
 #include <TH2.h>
 #include <TH1F.h>
 #include <TStyle.h>
@@ -96,10 +96,6 @@ int main(int argc, char *argv[])
   delete m_1;
 
   saveHistograms();
-  cout << endl;
-  cout << "RIGHT BEFORE PRINT!" << endl;
-  cout << "nEntries: " << nEntries << "nTightPho: " << nTightPho;
-  cout << "nEventsGTTwoL: " << nEventsGTTwoL;
   printResults(nEntries, nTightPho, nMediumPho, nLoosePho, 
     nNoCutPho, nLooseEvents, nEventsOneL, nEventsTwoL, 
     nEventsGTTwoL, lowestLoosePt, lowestTightPt);
